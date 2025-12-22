@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aegis Stream Council - Real-Time Fraud Detection Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .card-title {
+            font-size: 1.3em;
+            color: #333;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .metric:last-child {
+            border-bottom: none;
+        }
+
+        .metric-label {
+            color: #666;
+            font-weight: 500;
+        }
+
+        .metric-value {
+            font-size: 1.3em;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .virtue-profile {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .virtue-box {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            border-left: 4px solid #667eea;
+        }
+
+        .virtue-name {
+            font-size: 0.9em;
+            color: #666;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .virtue-score {
+            font-size: 1.5em;
+            font-weight: 700;
+            color: #667eea;
+            margin-top: 8px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9em;
+            margin-top: 10px;
+        }
+
+        .status-healthy {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-caution {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-critical {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-block {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-allow {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            border-radius: 4px;
+        }
+
+        .agent-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #4caf50;
+            margin-right: 8px;
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        .transaction-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .transaction-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .transaction-id {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .transaction-details {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .detail-label {
+            font-weight: 600;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 20px;
+            margin-right: 10px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .chart-container {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            height: 150px;
+        }
+
+        .footer {
+            text-align: center;
+            color: white;
+            margin-top: 40px;
+            padding: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            h1 {
+                font-size: 1.8em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>?? Aegis Stream Council</h1>
+            <p class="subtitle">Multi-Agent Real-Time Fraud Detection & Stream Analysis</p>
+            <p style="margin-top: 10px; color: #999; font-size: 0.9em;">
+                Inspired by Turritopsis dohrnii (Immortal Jellyfish) - Regenerative Memory + Multi-Agent Analysis
+            </p>
+        </header>
+
+        <div class="grid">
+            <!-- System Health -->
+            <div class="card">
+                <div class="card-title">?? System Health</div>
+                <div class="metric">
+                    <span class="metric-label">Volatility</span>
+                    <span class="metric-value" id="volatility">0.000</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="volatility-bar" style="width: 0%"></div>
+                </div>
+                <div class="metric" style="margin-top: 15px;">
+                    <span class="metric-label">Avg Virtue</span>
+                    <span class="metric-value" id="avg-virtue">0.00</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Memory Entries</span>
+                    <span class="metric-value" id="memory-entries">0</span>
+                </div>
+                <div id="system-status" class="status-badge status-healthy">HEALTHY</div>
+            </div>
+
+            <!-- Agent Status -->
+            <div class="card">
+                <div class="card-title">?? Agent Council Status</div>
+                <div class="metric">
+                    <span class="agent-indicator"></span>
+                    <span class="metric-label">DataQualityAgent</span>
+                    <span style="color: #4caf50; font-weight: 600;">ACTIVE</span>
+                </div>
+                <div class="metric">
+                    <span class="agent-indicator"></span>
+                    <span class="metric-label">TrendAgent</span>
+                    <span style="color: #4caf50; font-weight: 600;">ACTIVE</span>
+                </div>
+                <div class="metric">
+                    <span class="agent-indicator"></span>
+                    <span class="metric-label">StreamHealthAgent</span>
+                    <span style="color: #4caf50; font-weight: 600;">ACTIVE</span>
+                </div>
+                <div class="metric">
+                    <span class="agent-indicator"></span>
+                    <span class="metric-label">FraudDetectionAgent</span>
+                    <span style="color: #4caf50; font-weight: 600;">ACTIVE</span>
+                </div>
+                <div class="metric">
+                    <span class="agent-indicator"></span>
+                    <span class="metric-label">MetaCouncil</span>
+                    <span style="color: #4caf50; font-weight: 600;">ACTIVE</span>
+                </div>
+            </div>
+
+            <!-- Last Fraud Decision -->
+            <div class="card">
+                <div class="card-title">?? Last Fraud Analysis</div>
+                <div class="metric">
+                    <span class="metric-label">Action</span>
+                    <span id="fraud-action" class="status-badge status-allow">ALLOW</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Risk Level</span>
+                    <span class="metric-value" id="fraud-risk">-</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Processing Time</span>
+                    <span class="metric-value" id="fraud-time">0ms</span>
+                </div>
+                <div style="margin-top: 15px;">
+                    <div style="font-weight: 600; color: #333; margin-bottom: 10px;">Virtue Profile:</div>
+                    <div class="virtue-profile">
+                        <div class="virtue-box">
+                            <div class="virtue-name">Compassion</div>
+                            <div class="virtue-score" id="virtue-compassion">0.00</div>
+                        </div>
+                        <div class="virtue-box">
+                            <div class="virtue-name">Integrity</div>
+                            <div class="virtue-score" id="virtue-integrity">0.00</div>
+                        </div>
+                        <div class="virtue-box">
+                            <div class="virtue-name">Courage</div>
+                            <div class="virtue-score" id="virtue-courage">0.00</div>
+                        </div>
+                        <div class="virtue-box">
+                            <div class="virtue-name">Wisdom</div>
+                            <div class="virtue-score" id="virtue-wisdom">0.00</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fraud Indicators -->
+            <div class="card">
+                <div class="card-title">?? Fraud Indicators</div>
+                <div class="metric">
+                    <span class="metric-label">Velocity Score</span>
+                    <span class="metric-value" id="velocity-score">0.000</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Amount Anomaly</span>
+                    <span class="metric-value" id="amount-anomaly">0.000</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Merchant Anomaly</span>
+                    <span class="metric-value" id="merchant-anomaly">0.000</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">History Score</span>
+                    <span class="metric-value" id="history-score">0.000</span>
+                </div>
+            </div>
+
+            <!-- Transaction Stream -->
+            <div class="card full-width">
+                <div class="card-title">?? Recent Transactions</div>
+                <div class="transaction-list" id="transaction-list">
+                    <div style="text-align: center; color: #999; padding: 20px;">
+                        Awaiting transactions...
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="card full-width">
+                <div class="card-title">?? Control Panel</div>
+                <button onclick="loadSystemHealth()">? Refresh Health</button>
+                <button onclick="runDemoFraud()">? Test Fraud Detection</button>
+                <button onclick="createSnapshot()">?? Create Snapshot</button>
+                <button onclick="regenerateSystem()">?? Regenerate System</button>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>?? Aegis Stream Council | Powered by Confluent Kafka + Google Vertex AI</p>
+            <p style="margin-top: 10px; font-size: 0.9em;">
+                Multi-Agent Real-Time Analysis for Fraud Detection & Stream Processing
+            </p>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/api/aegiscouncil';
+
+        async function loadSystemHealth() {
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                const data = await response.json();
+                
+                document.getElementById('volatility').textContent = data.volatility.toFixed(3);
+                document.getElementById('volatility-bar').style.width = (data.volatility * 100) + '%';
+                document.getElementById('avg-virtue').textContent = data.averageVirtue.toFixed(2);
+                document.getElementById('memory-entries').textContent = data.totalEntries;
+                
+                const statusEl = document.getElementById('system-status');
+                statusEl.textContent = data.status;
+                statusEl.className = 'status-badge status-' + data.status.toLowerCase();
+            } catch (error) {
+                console.error('Error loading health:', error);
+            }
+        }
+
+        async function runDemoFraud() {
+            const transaction = {
+                id: 'TXN_' + Math.random().toString(36).substr(2, 9),
+                card_id: 'CARD_' + Math.floor(Math.random() * 1000),
+                amount: Math.floor(Math.random() * 5000) + 10,
+                merchant: ['Starbucks', 'Electronics Store', 'Gas Station', 'Restaurant', 'Online Store'][Math.floor(Math.random() * 5)],
+                location: ['New York', 'Los Angeles', 'Chicago', 'Houston', 'Phoenix'][Math.floor(Math.random() * 5)],
+                timestamp: new Date().toISOString(),
+                data_quality: Math.random() * 0.4 + 0.6
+            };
+
+            try {
+                const response = await fetch(`${API_BASE}/analyze/fraud`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(transaction)
+                });
+                const decision = await response.json();
+                updateFraudDisplay(decision, transaction);
+            } catch (error) {
+                console.error('Error running fraud analysis:', error);
+            }
+        }
+
+        function updateFraudDisplay(decision, transaction) {
+            // Update fraud indicators
+            document.getElementById('fraud-action').textContent = decision.action;
+            document.getElementById('fraud-action').className = 'status-badge status-' + decision.action.toLowerCase();
+            document.getElementById('fraud-risk').textContent = decision.riskLevel;
+            document.getElementById('fraud-time').textContent = decision.processingTimeMs.toFixed(2) + 'ms';
+            
+            // Update virtue profile
+            document.getElementById('virtue-compassion').textContent = decision.virtueProfile.compassion.toFixed(2);
+            document.getElementById('virtue-integrity').textContent = decision.virtueProfile.integrity.toFixed(2);
+            document.getElementById('virtue-courage').textContent = decision.virtueProfile.courage.toFixed(2);
+            document.getElementById('virtue-wisdom').textContent = decision.virtueProfile.wisdom.toFixed(2);
+            
+            // Update indicators
+            if (decision.fraudIndicators) {
+                document.getElementById('velocity-score').textContent = (decision.fraudIndicators.velocity_score || 0).toFixed(3);
+                document.getElementById('amount-anomaly').textContent = (decision.fraudIndicators.amount_anomaly || 0).toFixed(3);
+                document.getElementById('merchant-anomaly').textContent = (decision.fraudIndicators.merchant_anomaly || 0).toFixed(3);
+                document.getElementById('history-score').textContent = (decision.fraudIndicators.history_score || 0).toFixed(3);
+            }
+            
+            // Add to transaction list
+            const list = document.getElementById('transaction-list');
+            if (list.children[0].textContent.includes('Awaiting')) {
+                list.innerHTML = '';
+            }
+            
+            const item = document.createElement('div');
+            item.className = 'transaction-item';
+            item.innerHTML = `
+                <div class="transaction-id">${transaction.id}</div>
+                <div class="transaction-details">
+                    <div><span class="detail-label">Card:</span> ${transaction.card_id}</div>
+                    <div><span class="detail-label">Amount:</span> $${transaction.amount.toFixed(2)}</div>
+                    <div><span class="detail-label">Merchant:</span> ${transaction.merchant}</div>
+                    <div><span class="detail-label">Location:</span> ${transaction.location}</div>
+                    <div><span class="detail-label">Decision:</span> <strong style="color: ${decision.action === 'BLOCK' ? '#d32f2f' : '#388e3c'}">${decision.action}</strong></div>
+                    <div><span class="detail-label">Risk:</span> ${decision.riskLevel}</div>
+                </div>
+            `;
+            list.insertBefore(item, list.firstChild);
+            
+            // Keep only last 10
+            while (list.children.length > 10) {
+                list.removeChild(list.lastChild);
+            }
+        }
+
+        async function createSnapshot() {
+            try {
+                const response = await fetch(`${API_BASE}/snapshot`, { method: 'POST' });
+                const result = await response.json();
+                alert('Snapshot created: ' + (result.success ? result.snapshot.id : 'Failed'));
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        async function regenerateSystem() {
+            try {
+                const response = await fetch(`${API_BASE}/regenerate`, { method: 'POST' });
+                const result = await response.json();
+                alert('System regenerated: ' + (result.success ? 'Success' : 'No snapshots available'));
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        // Load health on startup
+        window.addEventListener('load', () => {
+            loadSystemHealth();
+            setInterval(loadSystemHealth, 5000); // Refresh every 5 seconds
+        });
+    </script>
+</body>
+</html>

@@ -2,11 +2,14 @@
 
 using ConfluentBot.Bots;
 using ConfluentBot.Dialogs;
+using ConfluentBot.Services;
+using ConfluentBot.Services.AegisMemory;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Bot.Builder;
 using Microsoft.Bot.Builder.Integration.AspNet.Core;
 using Microsoft.Bot.Connector.Authentication;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -14,6 +17,13 @@ namespace ConfluentBot
 {
     public class Startup
     {
+        private readonly IConfiguration _configuration;
+
+        public Startup(IConfiguration configuration)
+        {
+            _configuration = configuration;
+        }
+
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
@@ -48,6 +58,38 @@ namespace ConfluentBot
 
             // Create the bot as a transient. In this case the ASP Controller is expecting an IBot.
             services.AddTransient<IBot, DialogAndWelcomeBot<MainDialog>>();
+
+            // Register Confluent Kafka streaming services
+            var kafkaConfig = _configuration.GetSection("Kafka").Get<KafkaConsumerConfig>() ?? new KafkaConsumerConfig();
+            services.AddSingleton(kafkaConfig);
+            services.AddSingleton<IKafkaConsumerService, KafkaConsumerService>();
+
+            // Register Google Cloud Vertex AI prediction service
+            var vertexAiConfig = _configuration.GetSection("VertexAI").Get<VertexAIConfig>() ?? new VertexAIConfig();
+            services.AddSingleton(vertexAiConfig);
+            services.AddSingleton<IVertexAIPredictionService, VertexAIPredictionService>();
+
+            // Register stream processing pipeline
+            services.AddSingleton<IStreamProcessingPipeline, StreamProcessingPipeline>();
+
+            // Register telemetry service
+            services.AddSingleton<IStreamTelemetry, StreamTelemetry>();
+
+            // ===== NEW: Aegis Framework Services =====
+            // Register regenerative memory as singleton (system-wide state)
+            services.AddSingleton<RegenerativeMemory>();
+
+            // Register stream agents (they depend on RegenerativeMemory)
+            services.AddSingleton<DataQualityAgent>();
+            services.AddSingleton<TrendAgent>();
+            services.AddSingleton<StreamHealthAgent>();
+            services.AddSingleton<FraudDetectionAgent>();
+
+            // Register MetaCouncil (orchestrates agent decisions)
+            services.AddSingleton<MetaCouncil>();
+
+            // Register AegisCouncil (high-level orchestrator)
+            services.AddSingleton<AegisStreamCouncil>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
