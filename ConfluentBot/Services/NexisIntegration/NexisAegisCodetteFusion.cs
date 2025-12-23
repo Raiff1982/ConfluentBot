@@ -14,7 +14,7 @@ namespace ConfluentBot.Services.NexisIntegration
     public class NexisAegisCodetteFusion
     {
         private readonly RegenerativeMemory _memory;
-        private readonly ILogger _logger;
+        private readonly ILogger<NexisAegisCodetteFusion> _logger;
         private readonly NexisSignalAgent _nexisAgent;
         private readonly CodetteSynthesizer _codette;
 
@@ -52,12 +52,21 @@ namespace ConfluentBot.Services.NexisIntegration
             public List<string> SupportingReasons { get; set; }
         }
 
-        public NexisAegisCodetteFusion(RegenerativeMemory memory, ILogger logger)
+        public NexisAegisCodetteFusion(RegenerativeMemory memory, ILogger<NexisAegisCodetteFusion> logger, ILoggerFactory loggerFactory = null)
         {
             _memory = memory;
             _logger = logger;
             _nexisAgent = new NexisSignalAgent(memory, logger);
-            _codette = new CodetteSynthesizer();
+            
+            // Create Vertex AI with proper logger type using factory
+            VertexAIFraudAnalyzer vertexAI = null;
+            if (loggerFactory != null)
+            {
+                var vertexLogger = loggerFactory.CreateLogger<VertexAIFraudAnalyzer>();
+                vertexAI = new VertexAIFraudAnalyzer(vertexLogger);
+            }
+            
+            _codette = new CodetteSynthesizer(vertexAI);
         }
 
         public async Task<FusionAnalysisResult> AnalyzeTransactionAsync(Dictionary<string, object> transaction)
@@ -74,8 +83,15 @@ namespace ConfluentBot.Services.NexisIntegration
                 ReasoningChain = new ExplainableChain { Steps = new() }
             };
 
+            // Wrap transaction for Nexis analysis (expects payload format)
+            var nexisInput = new Dictionary<string, object>
+            {
+                { "topic", "transaction" },
+                { "payload", transaction }
+            };
+
             // Run Nexis analysis
-            var nexisResult = await _nexisAgent.AnalyzeAsync(transaction);
+            var nexisResult = await _nexisAgent.AnalyzeAsync(nexisInput);
             result.NexisFindings = nexisResult.Data;
             result.AegisVirtues = nexisResult.VirtueProfile;
 
@@ -110,19 +126,21 @@ namespace ConfluentBot.Services.NexisIntegration
                 Rationale = "Detects pattern resonance and anomalies"
             });
 
-            // Run Codette synthesis
-            var codetteAnalysis = _codette.SynthesizeReasoning(transaction);
+            // Run Codette synthesis (now with async support for Vertex AI)
+            var codetteAnalysis = await _codette.SynthesizeReasoningAsync(transaction);
             result.CodetteReasoning = codetteAnalysis;
 
-            foreach (var framework in new[] { "Neural", "Newtonian", "DaVinci", "Quantum", "Philosophy" })
+            // Add Codette frameworks
+            foreach (var framework in new[] { "Neural", "Newtonian", "DaVinci", "Quantum", "Philosophy", "Mathematics", "Symbolic", "Systems", "Kindness", "VertexAI" })
             {
                 if (codetteAnalysis.TryGetValue(framework, out var finding))
                 {
+                    var weight = framework == "VertexAI" ? 0.10 : 0.08; // Vertex AI gets 10% weight
                     result.ReasoningChain.Steps.Add(new ReasoningStep
                     {
                         Framework = $"CODETTE_{framework.ToUpper()}",
                         Finding = finding.ToString(),
-                        Weight = 0.08,
+                        Weight = weight,
                         Rationale = $"Applies {framework} logic perspective"
                     });
                 }
@@ -235,79 +253,157 @@ namespace ConfluentBot.Services.NexisIntegration
 
     public class CodetteSynthesizer
     {
-        public Dictionary<string, object> SynthesizeReasoning(Dictionary<string, object> transaction)
+        private readonly VertexAIFraudAnalyzer _vertexAI;
+
+        public CodetteSynthesizer(VertexAIFraudAnalyzer vertexAI = null)
+        {
+            _vertexAI = vertexAI;
+        }
+
+        public async Task<Dictionary<string, object>> SynthesizeReasoningAsync(Dictionary<string, object> transaction)
         {
             var results = new Dictionary<string, object>();
             var amount = GetDoubleValue(transaction, "amount", 0.0);
             var merchant = GetStringValue(transaction, "merchant", "unknown");
             var category = GetStringValue(transaction, "category", "unknown");
 
-            results["Neural"] = NeuralNetworkPerspective(amount, merchant);
-            results["Newtonian"] = NewtonianLogic(amount, category);
-            results["DaVinci"] = DaVinciSynthesis(merchant, category);
-            results["Kindness"] = ResilientKindness();
-            results["Quantum"] = QuantumLogic(amount, merchant);
-            results["Philosophy"] = PhilosophicalInquiry();
-            results["Mathematics"] = MathematicalRigor(amount);
-            results["Symbolic"] = SymbolicReasoning(merchant, category);
-            results["Systems"] = SystemsThinking();
+            // Determine transaction risk profile
+            var isTrustedMerchant = IsTrustedMerchant(merchant);
+            var isSuspiciousMerchant = IsSuspiciousMerchant(merchant);
+            var isHighAmount = amount > 5000;
+            var isSmallAmount = amount < 100;
+
+            results["Neural"] = NeuralNetworkPerspective(amount, merchant, isTrustedMerchant, isSuspiciousMerchant);
+            results["Newtonian"] = NewtonianLogic(amount, category, isHighAmount);
+            results["DaVinci"] = DaVinciSynthesis(merchant, category, isTrustedMerchant);
+            results["Kindness"] = ResilientKindness(isTrustedMerchant);
+            results["Quantum"] = QuantumLogic(amount, merchant, isSuspiciousMerchant);
+            results["Philosophy"] = PhilosophicalInquiry(amount, isTrustedMerchant);
+            results["Mathematics"] = MathematicalRigor(amount, isHighAmount);
+            results["Symbolic"] = SymbolicReasoning(merchant, category, isTrustedMerchant);
+            results["Systems"] = SystemsThinking(amount, isTrustedMerchant, isSuspiciousMerchant);
+            
+            // Add Vertex AI as 10th framework
+            if (_vertexAI != null)
+            {
+                var vertexResult = await _vertexAI.AnalyzeFraudRiskAsync(transaction);
+                results["VertexAI"] = VertexAIFramework(vertexResult, amount, merchant);
+            }
 
             return results;
         }
 
-        private string NeuralNetworkPerspective(double amount, string merchant)
+        private string VertexAIFramework(VertexAIFraudAnalyzer.VertexAIResult vertexResult, double amount, string merchant)
         {
-            var risk = amount > 5000 ? "elevated" : amount > 1000 ? "moderate" : "low";
-            return $"Neural: ${amount:F2} to {merchant} shows {risk} risk pattern.";
+            var source = vertexResult.IsAvailable ? "Vertex AI ML Model" : "Vertex AI Fallback";
+            return $"{source}: Fraud likelihood {vertexResult.FraudLikelihood:P0}, Risk={vertexResult.RiskLevel}. {vertexResult.Rationale}";
         }
 
-        private string NewtonianLogic(double amount, string category)
+        private bool IsTrustedMerchant(string merchant)
         {
-            var risk = category.ToLower() switch
+            var trusted = new[] { "amazon", "netflix", "apple", "microsoft", "google", "paypal", "walmart", "target" };
+            var lowerMerchant = merchant.ToLower();
+            return trusted.Any(t => lowerMerchant.Contains(t));
+        }
+
+        private bool IsSuspiciousMerchant(string merchant)
+        {
+            var suspicious = new[] { "crypto", "exchange", "anonymous", "offshore", "darknet", "untraceable" };
+            var lowerMerchant = merchant.ToLower();
+            return suspicious.Any(s => lowerMerchant.Contains(s));
+        }
+
+        private string NeuralNetworkPerspective(double amount, string merchant, bool trusted, bool suspicious)
+        {
+            if (trusted)
+                return $"Neural: ${amount:F2} to trusted {merchant} - LOW RISK pattern recognized.";
+            if (suspicious)
+                return $"Neural: ${amount:F2} to {merchant} - HIGH RISK anomaly detected.";
+            if (amount > 5000)
+                return $"Neural: ${amount:F2} transaction - ELEVATED risk due to amount.";
+            if (amount < 100)
+                return $"Neural: ${amount:F2} micro-transaction - LOW RISK pattern.";
+            return $"Neural: ${amount:F2} to {merchant} - MODERATE risk baseline.";
+        }
+
+        private string NewtonianLogic(double amount, string category, bool highAmount)
+        {
+            var categoryRisk = category.ToLower() switch
             {
                 "electronics" => "moderate",
-                "luxury" => "elevated",
+                "luxury" => "high",
                 "essentials" => "low",
+                "subscription" => "very low",
+                "books" => "very low",
+                "crypto" => "extreme",
                 _ => "neutral"
             };
-            return $"Newtonian: Category '{category}' has {risk} inherent risk.";
+
+            if (highAmount)
+                return $"Newtonian: Category '{category}' + ${amount:F2} amount = {categoryRisk} ? ELEVATED risk.";
+            return $"Newtonian: Category '{category}' has {categoryRisk} risk profile.";
         }
 
-        private string DaVinciSynthesis(string merchant, string category)
+        private string DaVinciSynthesis(string merchant, string category, bool trusted)
         {
-            return $"Da Vinci: '{merchant}' in '{category}' represents intersection of commerce and ethics.";
+            if (trusted)
+                return $"Da Vinci: '{merchant}' in '{category}' - ETHICAL ALIGNMENT confirmed (known merchant).";
+            return $"Da Vinci: '{merchant}' in '{category}' - UNKNOWN merchant requires scrutiny.";
         }
 
-        private string ResilientKindness()
+        private string ResilientKindness(bool trusted)
         {
-            return "Kindness: All parties deserve consideration of honest intent before judgment.";
+            if (trusted)
+                return "Kindness: Established merchant history suggests good-faith intent.";
+            return "Kindness: Benefit of doubt given, but caution warranted for unknown vendors.";
         }
 
-        private string QuantumLogic(double amount, string merchant)
+        private string QuantumLogic(double amount, string merchant, bool suspicious)
         {
-            var probability = amount > 2000 ? 0.65 : 0.35;
-            return $"Quantum: Probability of fraudulent intent approximately {probability:P0}.";
+            if (suspicious)
+                return $"Quantum: High probability (>80%) of fraudulent intent detected.";
+            if (amount > 5000)
+                return $"Quantum: Probability of fraudulent intent approximately 55%.";
+            if (amount < 100)
+                return $"Quantum: Probability of fraudulent intent <10% (low-value transaction).";
+            return $"Quantum: Probability of fraudulent intent approximately 35%.";
         }
 
-        private string PhilosophicalInquiry()
+        private string PhilosophicalInquiry(double amount, bool trusted)
         {
-            return "Philosophy: What obligations exist to protect while enabling commerce?";
+            if (trusted)
+                return $"Philosophy: Trusted vendors ? Commerce enabled. Transaction permits prosperity.";
+            if (amount > 5000)
+                return $"Philosophy: Large sums demand heightened scrutiny. Protection vs. enablement tension.";
+            return $"Philosophy: Balance commerce freedom with consumer protection principles.";
         }
 
-        private string MathematicalRigor(double amount)
+        private string MathematicalRigor(double amount, bool highAmount)
         {
             var percentile = Math.Min(amount / 10000.0, 1.0);
-            return $"Mathematics: Amount ${amount:F2} at {percentile:P0} of distribution.";
+            if (highAmount)
+                return $"Mathematics: ${amount:F2} at {percentile:P0} of distribution = OUTLIER (watch for fraud).";
+            return $"Mathematics: ${amount:F2} at {percentile:P0} of normal distribution.";
         }
 
-        private string SymbolicReasoning(string merchant, string category)
+        private string SymbolicReasoning(string merchant, string category, bool trusted)
         {
-            return $"Symbolic: Merchant->Category trust assessment based on known patterns.";
+            if (trusted)
+                return $"Symbolic: {merchant} ? [trusted] ? ? validate and approve.";
+            if (category.ToLower().Contains("crypto"))
+                return $"Symbolic: crypto ? [high-risk] ? ? scrutinize heavily.";
+            return $"Symbolic: {merchant} ? [known] ? ? requires verification.";
         }
 
-        private string SystemsThinking()
+        private string SystemsThinking(double amount, bool trusted, bool suspicious)
         {
-            return "Systems: Transaction exists in ecosystem. Holistic evaluation required.";
+            if (trusted && amount < 100)
+                return $"Systems: Low-value + trusted vendor = stable ecosystem transaction.";
+            if (suspicious && amount > 5000)
+                return $"Systems: High-value + suspicious vendor = system destabilization risk.";
+            if (trusted)
+                return $"Systems: Trusted merchant maintains ecosystem integrity.";
+            return $"Systems: Unknown vendor introduces uncertainty into transaction ecosystem.";
         }
 
         private double GetDoubleValue(Dictionary<string, object> dict, string key, double defaultValue)

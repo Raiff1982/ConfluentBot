@@ -63,14 +63,20 @@ namespace ConfluentBot.Services.NexisIntegration
         {
             return await Task.Run(() =>
             {
-                var topic = inputData.TryGetValue("topic", out var t) ? t as string : "unknown";
-                var payload = inputData.TryGetValue("payload", out var p) ? p as Dictionary<string, object> : new();
+                // Handle both transaction and stream message formats
+                var payload = inputData;
+                
+                // If this is wrapped in a stream message format, unwrap it
+                if (inputData.TryGetValue("payload", out var p) && p is Dictionary<string, object>)
+                {
+                    payload = (Dictionary<string, object>)p;
+                }
 
-                // Extract signal from payload
+                // Extract signal from transaction data
                 string signal = ExtractSignal(payload);
                 
                 // Perform Nexis-inspired analysis
-                var intentVector = AnalyzeIntentVector(signal);
+                var intentVector = AnalyzeIntentVector(signal, payload);
                 var perspectives = AnalyzePerspectives(signal);
                 
                 // Convert to virtue profile
@@ -98,6 +104,7 @@ namespace ConfluentBot.Services.NexisIntegration
                                  $"Virtue: {virtue}"
                 };
 
+                var topic = inputData.TryGetValue("topic", out var t) ? t as string : "transaction";
                 RecordAnalysis(topic ?? "unknown", result);
                 LogAnalysis(result);
                 return result;
@@ -126,10 +133,20 @@ namespace ConfluentBot.Services.NexisIntegration
 
         private NexisIntentVector AnalyzeIntentVector(string signal)
         {
+            return AnalyzeIntentVector(signal, null);
+        }
+
+        private NexisIntentVector AnalyzeIntentVector(string signal, Dictionary<string, object> payload)
+        {
             signal = signal.ToLower();
             var words = signal.Split(new[] { ' ', ':', ';', ',' }, StringSplitOptions.RemoveEmptyEntries);
 
-            // Calculate suspicion score (risk terms)
+            // Get amount and merchant for contextual analysis
+            var amount = GetDoubleValue(payload, "amount", 0.0);
+            var merchant = GetStringValue(payload, "merchant", "unknown").ToLower();
+            var category = GetStringValue(payload, "category", "unknown").ToLower();
+
+            // Calculate suspicion score (risk terms) - base score from keywords
             var suspicion = 0.0;
             foreach (var word in words)
             {
@@ -139,6 +156,18 @@ namespace ConfluentBot.Services.NexisIntegration
                         suspicion += 0.25;
                 }
             }
+            
+            // Add amount-based suspicion
+            if (amount > 10000)
+                suspicion += 0.3;
+            else if (amount > 5000)
+                suspicion += 0.15;
+            
+            // Check for suspicious merchant keywords
+            if (FuzzyMatch(merchant, "crypto", 0.7) || FuzzyMatch(merchant, "exchange", 0.7) || 
+                FuzzyMatch(merchant, "anonymous", 0.7))
+                suspicion += 0.3;
+            
             suspicion = Math.Min(suspicion, 1.0);
 
             // Calculate entropy (entropic terms presence)
@@ -155,24 +184,36 @@ namespace ConfluentBot.Services.NexisIntegration
 
             // Evaluate ethical alignment
             var ethicalAlignment = "unaligned";
-            foreach (var word in words)
+            
+            // Check for trusted merchants
+            if (FuzzyMatch(merchant, "amazon", 0.8) || FuzzyMatch(merchant, "netflix", 0.8) ||
+                FuzzyMatch(merchant, "apple", 0.8) || FuzzyMatch(merchant, "microsoft", 0.8) ||
+                FuzzyMatch(merchant, "google", 0.8) || FuzzyMatch(merchant, "paypal", 0.8))
             {
-                foreach (var ethicalTerm in EthicalTerms)
+                ethicalAlignment = "aligned";
+            }
+            else
+            {
+                // Check for ethical terms in signal
+                foreach (var word in words)
                 {
-                    if (FuzzyMatch(word, ethicalTerm, 0.75))
+                    foreach (var ethicalTerm in EthicalTerms)
                     {
-                        ethicalAlignment = "aligned";
-                        break;
+                        if (FuzzyMatch(word, ethicalTerm, 0.75))
+                        {
+                            ethicalAlignment = "aligned";
+                            break;
+                        }
                     }
+                    if (ethicalAlignment == "aligned") break;
                 }
-                if (ethicalAlignment == "aligned") break;
             }
 
-            // Calculate harmonic volatility (entropy + risk combination)
+            // Calculate harmonic volatility (entropy + risk combination, adjusted for stability)
             var volatility = (entropy + suspicion) / 2.0;
 
-            // Determine pre-corruption risk
-            var risk = (suspicion > 0.5 || entropy > 0.6 || volatility > 0.55) ? "high" : "low";
+            // Determine pre-corruption risk based on all factors
+            var risk = (suspicion > 0.5 || entropy > 0.6 || volatility > 0.55 || amount > 8000) ? "high" : "low";
 
             return new NexisIntentVector
             {
@@ -182,6 +223,21 @@ namespace ConfluentBot.Services.NexisIntegration
                 HarmonicVolatility = Math.Round(volatility, 3),
                 PreCorruptionRisk = risk
             };
+        }
+
+        private double GetDoubleValue(Dictionary<string, object> dict, string key, double defaultValue)
+        {
+            if (dict.TryGetValue(key, out var value))
+            {
+                if (double.TryParse(value.ToString(), out var result))
+                    return result;
+            }
+            return defaultValue;
+        }
+
+        private string GetStringValue(Dictionary<string, object> dict, string key, string defaultValue)
+        {
+            return dict.TryGetValue(key, out var value) ? value.ToString() : defaultValue;
         }
 
         private PerspectiveAnalysis AnalyzePerspectives(string signal)

@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NexisAegisCodetteFusion - Live Fraud Detection Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+
+        .status-bar {
+            display: flex;
+            gap: 20px;
+            padding: 15px 0;
+            border-top: 2px solid #f0f0f0;
+            font-size: 14px;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-badge {
+            background: #28a745;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .scenarios {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .scenario-btn {
+            background: white;
+            border: 2px solid #667eea;
+            color: #667eea;
+            padding: 15px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+            text-align: center;
+        }
+
+        .scenario-btn:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+        }
+
+        .scenario-btn.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .analysis-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .panel {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .panel h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+            font-size: 1.3em;
+        }
+
+        .panel h4 {
+            color: #764ba2;
+            margin-top: 15px;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .metric {
+            margin: 12px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            border-radius: 4px;
+        }
+
+        .metric-label {
+            font-weight: bold;
+            color: #333;
+        }
+
+        .metric-value {
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        .verdict-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            margin: 10px 0;
+            font-size: 18px;
+        }
+
+        .verdict-approve {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .verdict-review {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .verdict-block {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .virtue-meter {
+            margin: 12px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+
+        .virtue-label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .virtue-bar {
+            height: 20px;
+            background: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .virtue-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.3s ease;
+        }
+
+        .reasoning-step {
+            margin: 10px 0;
+            padding: 12px;
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            border-radius: 4px;
+        }
+
+        .step-num {
+            background: #667eea;
+            color: white;
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 24px;
+            font-weight: bold;
+            font-size: 12px;
+            margin-right: 10px;
+        }
+
+        .step-framework {
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .step-finding {
+            color: #666;
+            margin: 5px 0;
+            font-size: 14px;
+        }
+
+        .step-weight {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin: 5px 0;
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #667eea;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .custom-input {
+            margin-bottom: 20px;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        button {
+            background: #667eea;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.3s;
+            width: 100%;
+        }
+
+        button:hover {
+            background: #764ba2;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        @media (max-width: 1200px) {
+            .analysis-container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <h1>?? NexisAegisCodetteFusion</h1>
+            <p class="subtitle">Next-Generation Explainable Fraud Detection</p>
+            <div class="status-bar">
+                <div class="status-item">
+                    <span>Status:</span>
+                    <span class="status-badge">? Operational</span>
+                </div>
+                <div class="status-item">
+                    <span>Frameworks:</span>
+                    <span class="status-badge">14+</span>
+                </div>
+                <div class="status-item">
+                    <span>Latency:</span>
+                    <span class="status-badge">&lt;100ms</span>
+                </div>
+                <div class="status-item">
+                    <span>Explainability:</span>
+                    <span class="status-badge">100%</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Demo Scenarios -->
+        <div class="panel" style="margin-bottom: 30px;">
+            <h3>?? Demo Scenarios</h3>
+            <p style="margin-bottom: 15px; color: #666;">Click a scenario to analyze in real-time</p>
+            <div class="scenarios" id="scenarios-container"></div>
+        </div>
+
+        <!-- Custom Transaction Input -->
+        <div class="panel" style="margin-bottom: 30px;">
+            <h3>?? Custom Transaction Analysis</h3>
+            <div class="custom-input">
+                <label><strong>Transaction ID</strong></label>
+                <input type="text" id="customId" placeholder="txn-custom-001" value="txn-custom-001">
+                
+                <label><strong>Amount (USD)</strong></label>
+                <input type="number" id="customAmount" placeholder="1000.00" value="1000.00" step="0.01">
+                
+                <label><strong>Merchant</strong></label>
+                <input type="text" id="customMerchant" placeholder="Amazon.com" value="Amazon.com">
+                
+                <label><strong>Category</strong></label>
+                <select id="customCategory">
+                    <option value="Electronics">Electronics</option>
+                    <option value="Books">Books</option>
+                    <option value="Subscription">Subscription</option>
+                    <option value="Risky Asset">Risky Asset</option>
+                    <option value="Unknown">Unknown</option>
+                </select>
+                
+                <button onclick="analyzeCustom()">Analyze Custom Transaction</button>
+            </div>
+        </div>
+
+        <!-- Analysis Results -->
+        <div id="results-container" class="hidden">
+            <div class="analysis-container">
+                <!-- Verdict Panel -->
+                <div class="panel">
+                    <h3>?? Verdict</h3>
+                    <div id="verdict-display"></div>
+                </div>
+
+                <!-- Metrics Panel -->
+                <div class="panel">
+                    <h3>?? Metrics</h3>
+                    <div id="metrics-display"></div>
+                </div>
+            </div>
+
+            <!-- Nexis Analysis -->
+            <div class="panel">
+                <h3>?? NEXIS Signal Analysis</h3>
+                <div id="nexis-display"></div>
+            </div>
+
+            <!-- Codette Reasoning -->
+            <div class="panel">
+                <h3>?? CODETTE Reasoning Frameworks</h3>
+                <div id="codette-display"></div>
+            </div>
+
+            <!-- Aegis Virtues -->
+            <div class="panel">
+                <h3>?? AEGIS Virtue Scoring</h3>
+                <div id="virtue-display"></div>
+            </div>
+
+            <!-- Reasoning Chain -->
+            <div class="panel full-width">
+                <h3>?? Complete Reasoning Chain (14+ Frameworks)</h3>
+                <div id="reasoning-chain-display"></div>
+            </div>
+        </div>
+
+        <!-- Loading Indicator -->
+        <div id="loading-container" class="hidden">
+            <div class="panel">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Analyzing transaction through 14+ frameworks...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/api/fraudDemo';
+        let scenarios = [];
+
+        // Load scenarios on page load
+        window.onload = async function() {
+            await loadScenarios();
+        };
+
+        async function loadScenarios() {
+            try {
+                const response = await fetch(`${API_BASE}/scenarios`);
+                const data = await response.json();
+                scenarios = data.scenarios;
+                renderScenarios();
+            } catch (error) {
+                console.error('Error loading scenarios:', error);
+            }
+        }
+
+        function renderScenarios() {
+            const container = document.getElementById('scenarios-container');
+            container.innerHTML = scenarios.map(scenario => `
+                <button class="scenario-btn" onclick="analyzeScenario(${scenario.id})">
+                    <div style="font-size: 1.2em; margin-bottom: 5px;">
+                        ${scenario.id === 1 ? '?' : scenario.id === 2 ? '??' : scenario.id === 3 ? '??' : '?'}
+                    </div>
+                    <div>${scenario.title}</div>
+                    <div style="font-size: 12px; opacity: 0.8; margin-top: 5px;">Scenario ${scenario.id}</div>
+                </button>
+            `).join('');
+        }
+
+        async function analyzeScenario(scenarioId) {
+            const scenario = scenarios.find(s => s.id === scenarioId);
+            if (!scenario) return;
+
+            showLoading();
+            try {
+                const response = await fetch(`${API_BASE}/analyze`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(scenario.transaction)
+                });
+
+                if (!response.ok) throw new Error('Analysis failed');
+                const result = await response.json();
+                displayResults(result);
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        async function analyzeCustom() {
+            const transaction = {
+                id: document.getElementById('customId').value,
+                amount: parseFloat(document.getElementById('customAmount').value),
+                merchant: document.getElementById('customMerchant').value,
+                category: document.getElementById('customCategory').value
+            };
+
+            showLoading();
+            try {
+                const response = await fetch(`${API_BASE}/analyze`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(transaction)
+                });
+
+                if (!response.ok) throw new Error('Analysis failed');
+                const result = await response.json();
+                displayResults(result);
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        function displayResults(result) {
+            hideLoading();
+            
+            // Verdict
+            const verdictClass = `verdict-${result.decision.action.toLowerCase()}`;
+            const verdictEmoji = result.decision.action === 'APPROVE' ? '?' : 
+                                result.decision.action === 'BLOCK' ? '??' : '??';
+            
+            document.getElementById('verdict-display').innerHTML = `
+                <div class="verdict-badge ${verdictClass}">
+                    ${verdictEmoji} ${result.decision.action}
+                </div>
+                <p style="margin: 15px 0; color: #666;">${result.decision.message}</p>
+                <div style="margin-top: 15px;">
+                    <strong>Supporting Reasons:</strong>
+                    <ul style="margin: 10px 0 0 20px;">
+                        ${result.decision.reasons.map(r => `<li>${r}</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+
+            // Metrics
+            document.getElementById('metrics-display').innerHTML = `
+                <div class="metric">
+                    <div class="metric-label">Fraud Score</div>
+                    <div class="metric-value">${(result.decision.fraudScore * 100).toFixed(1)}%</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Confidence</div>
+                    <div class="metric-value">${(result.decision.confidence * 100).toFixed(1)}%</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Transaction ID</div>
+                    <div style="font-family: monospace; font-size: 12px;">${result.transactionId}</div>
+                </div>
+            `;
+
+            // Nexis Analysis
+            document.getElementById('nexis-display').innerHTML = `
+                <h4>Perspectives</h4>
+                <div class="metric">
+                    <div class="metric-label">Colleen (Vector Analysis)</div>
+                    <div>${result.analysis.nexisFindings['colleen_vector'] || 'Stable transformation'}</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Luke (Ethics & Entropy)</div>
+                    <div>Ethical Alignment: <strong>${result.analysis.nexisFindings['ethical_alignment'] || 'aligned'}</strong></div>
+                    <div>Entropy Index: <strong>${(result.analysis.nexisFindings['entropy_index'] || 0).toFixed(3)}</strong></div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Kellyanne (Harmonics)</div>
+                    <div>${result.analysis.nexisFindings['kellyanne_harmonics'] || 'Stable pattern'}</div>
+                </div>
+            `;
+
+            // Codette Frameworks
+            document.getElementById('codette-display').innerHTML = Object.entries(result.analysis.codetteReasoning)
+                .map(([fw, reasoning]) => `
+                    <div class="metric">
+                        <div class="metric-label">${fw}</div>
+                        <div>${reasoning}</div>
+                    </div>
+                `).join('');
+
+            // Virtue Profile
+            const virtues = result.analysis.aegisVirtues;
+            document.getElementById('virtue-display').innerHTML = `
+                ${Object.entries({
+                    Integrity: virtues.integrity,
+                    Compassion: virtues.compassion,
+                    Courage: virtues.courage,
+                    Wisdom: virtues.wisdom
+                }).map(([name, value]) => `
+                    <div class="virtue-meter">
+                        <div class="virtue-label">
+                            <span>${name}</span>
+                            <span style="color: #667eea; font-weight: bold;">${(value * 100).toFixed(1)}%</span>
+                        </div>
+                        <div class="virtue-bar">
+                            <div class="virtue-fill" style="width: ${value * 100}%"></div>
+                        </div>
+                    </div>
+                `).join('')}
+            `;
+
+            // Reasoning Chain
+            document.getElementById('reasoning-chain-display').innerHTML = `
+                <p style="margin-bottom: 15px; color: #666;">${result.analysis.reasoningChain.summary}</p>
+                ${result.analysis.reasoningChain.steps.map(step => `
+                    <div class="reasoning-step">
+                        <div>
+                            <span class="step-num">${step.sequence}</span>
+                            <span class="step-framework">${step.framework}</span>
+                            <span class="step-weight">${step.weight}</span>
+                        </div>
+                        <div class="step-finding"><strong>Finding:</strong> ${step.finding}</div>
+                        <div class="step-finding"><em>Rationale:</em> ${step.rationale}</div>
+                    </div>
+                `).join('')}
+            `;
+
+            document.getElementById('results-container').classList.remove('hidden');
+        }
+
+        function showLoading() {
+            document.getElementById('loading-container').classList.remove('hidden');
+            document.getElementById('results-container').classList.add('hidden');
+        }
+
+        function hideLoading() {
+            document.getElementById('loading-container').classList.add('hidden');
+        }
+
+        function showError(message) {
+            hideLoading();
+            document.getElementById('results-container').classList.remove('hidden');
+            document.getElementById('verdict-display').innerHTML = `<div class="error">Error: ${message}</div>`;
+        }
+    </script>
+</body>
+</html>
